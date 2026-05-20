@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1e3a5f">
+  <title>音乐视听厅 | 琴和堂艺术中心</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: { primary: '#1e3a5f', secondary: '#c9a96e', accent: '#e63946' },
+          fontFamily: { serif: ['Noto Serif SC','serif'], sans: ['Noto Sans SC','sans-serif'] }
+        }
+      }
+    }
+  </script>
+  <style>
+    * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+    body { font-family: 'Noto Sans SC', sans-serif; overscroll-behavior-y: none; }
+    .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
+    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .video-card { transition: all 0.3s ease; }
+    .video-card:active { transform: scale(0.97); }
+    .play-overlay { opacity: 0; transition: opacity 0.3s; }
+    .video-card:hover .play-overlay { opacity: 1; }
+    .modal { display: none; position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,0.9); }
+    .modal.active { display: flex; align-items: center; justify-content: center; }
+    .tab-active { color: #1e3a5f; border-bottom: 2px solid #1e3a5f; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+  <!-- 顶部导航 -->
+  <div class="bg-primary text-white sticky top-0 z-50">
+    <div class="flex items-center justify-between px-4 h-14">
+      <a href="member.html" class="flex items-center gap-2">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        <span class="font-medium">返回</span>
+      </a>
+      <h1 class="font-serif font-bold text-lg">音乐视听厅</h1>
+      <div class="w-16"></div>
+    </div>
+  </div>
+
+  <!-- 搜索栏 -->
+  <div class="bg-white px-4 py-3 shadow-sm sticky top-14 z-40">
+    <div class="relative">
+      <input type="text" id="searchInput" placeholder="搜索视频、演奏家、曲目..." 
+        class="w-full pl-10 pr-4 py-2.5 bg-slate-100 rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary/20">
+      <svg class="w-5 h-5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- 分类标签 -->
+  <div class="bg-white border-b hide-scrollbar overflow-x-auto">
+    <div class="flex gap-1 px-4 py-2 min-w-max" id="categoryTabs">
+      <button onclick="filterCategory('all')" class="tab-btn tab-active px-4 py-2 text-sm font-medium whitespace-nowrap">全部</button>
+      <button onclick="filterCategory('piano')" class="tab-btn px-4 py-2 text-sm text-slate-500 whitespace-nowrap">钢琴</button>
+      <button onclick="filterCategory('guitar')" class="tab-btn px-4 py-2 text-sm text-slate-500 whitespace-nowrap">吉他</button>
+      <button onclick="filterCategory('drum')" class="tab-btn px-4 py-2 text-sm text-slate-500 whitespace-nowrap">架子鼓</button>
+      <button onclick="filterCategory('vocal')" class="tab-btn px-4 py-2 text-sm text-slate-500 whitespace-nowrap">声乐</button>
+      <button onclick="filterCategory('classic')" class="tab-btn px-4 py-2 text-sm text-slate-500 whitespace-nowrap">古典名曲</button>
+      <button onclick="filterCategory('teaching')" class="tab-btn px-4 py-2 text-sm text-slate-500 whitespace-nowrap">教学视频</button>
+    </div>
+  </div>
+
+  <!-- 视频列表 -->
+  <div class="p-4 pb-24" id="videoList">
+    <!-- 视频卡片由JS生成 -->
+  </div>
+
+  <!-- 播放器弹窗 -->
+  <div id="videoModal" class="modal" onclick="closeModal()">
+    <div class="w-full max-w-4xl px-4" onclick="event.stopPropagation()">
+      <div class="bg-black rounded-2xl overflow-hidden shadow-2xl">
+        <div class="aspect-video bg-slate-900 flex items-center justify-center relative">
+          <div id="playerPlaceholder" class="text-center text-white">
+            <div class="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+              <svg class="w-10 h-10" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            </div>
+            <p class="text-lg font-medium" id="modalTitle">正在加载播放器...</p>
+            <p class="text-sm text-slate-400 mt-2">点击外部区域关闭</p>
+          </div>
+          <!-- 实际播放器容器 -->
+          <div id="playerContainer" class="absolute inset-0 hidden"></div>
+        </div>
+        <div class="bg-slate-900 p-4">
+          <h3 class="text-white font-bold text-lg" id="modalVideoTitle"></h3>
+          <p class="text-slate-400 text-sm mt-1" id="modalVideoInfo"></p>
+          <div class="flex gap-3 mt-3">
+            <button class="flex-1 py-2 bg-primary text-white rounded-lg text-sm font-medium">收藏</button>
+            <button class="flex-1 py-2 bg-slate-700 text-white rounded-lg text-sm font-medium">分享</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 底部安全区 -->
+  <div class="safe-bottom h-4"></div>
+
+  <script>
+    // 视频数据 - 大量免费资源
+    const videos = [
+      // 钢琴
+      { id: 1, category: 'piano', title: '巴赫 C大调前奏曲 BWV846', artist: '郎朗', duration: '2:35', views: '128万', image: 'https://images.unsplash.com/photo-1520523839897-bd0b52f945a0?w=400&h=300&fit=crop', embed: 'https://www.youtube.com/embed/frxT2qB8POw', source: 'YouTube' },
+      { id: 2, category: 'piano', title: '肖邦 夜曲 Op.9 No.2', artist: '李云迪', duration: '4:32', views: '256万', image: 'https://images.unsplash.com/photo-1552422535-c45813c61732?w=400&h=300&fit=crop', embed: 'https://www.youtube.com/embed/8hruvIV_LZw', source: 'YouTube' },
+      { id: 3, category: 'piano', title: '贝多芬 月光奏鸣曲 第一乐章', artist: '巴伦博伊姆', duration: '6:18', views: '89万', image: 'https://images.unsplash.com/photo-1514117445516-2ec90fa4d84c?w=400&h=300&fit=crop', embed: 'https://www.youtube.com/embed/4Tr0otuiQuU', source: 'YouTube' },
+      { id: 4, category: 'piano', title: '莫扎特 土耳其进行曲', artist: '内田光子', duration: '3:42', views: '167万', image: 'https://images.unsplash.com/photo-1549834125-82c3c9b28e4b?w=400&h=300&fit=crop', embed: 'https://www.youtube.com/embed/8Z3Q3Jd3e0o', source: 'YouTube' },
+      { id: 5, category: 'piano', title: '李斯特 爱之梦', artist: '霍洛维茨', duration: '4:55', views: '203万', image: 'https://images.unsplash.com/photo-1507838153414-b4b713384a76?w=400&h=300&fit=crop', embed: 'https://www.youtube.com/embed/4T7i2i1K4Wk', source: 'YouTube' },
+      { id: 6, category: 'piano', title: '德彪西 月光', artist: '齐默尔曼', duration: '5:12', views: '145万', image: 'https://images.unsplash.com/photo-1552422535-c45813c61732?w=400&h=300&fit=crop', embed: 'https://www.youtube.com/embed/7J9X1P1q6Wk', source: 'YouTube' },
+
+      // 吉他
+      { id: 7, category: 'guitar', title: '古典吉他 阿尔罕布拉宫的回忆', artist: '约翰·威廉斯', duration: '5:28', views: '78万', image: 'https://images.unsplash.com/photo-1510915361894-db8b60106cb1?w=400&h=300&fit=crop', embed: 'https://www.youtube.com/embed/2U6dV9z1y6E', source: 'YouTube' },
+      { id: 8, category: 'guitar', title: '指弹吉他 天空之城', artist: '押尾光太郎', duration: '3:45', views: '312万', image: 'https://images.unsplash.com/photo-1525201548942-d8732f6617a0?w=400&h=300&fit=crop', embed: 'https://www.youtube.com/embed/8Z3Q3Jd3e0o', source: 'YouTube' },
+      { id: 9, category: 'guitar', title: '弗拉门戈吉他 大霍塔', artist: '帕科·德·卢西亚', duration: '7:12', views: '56万', image: 'https://images.unsplash.com/photo-1460039230329-eb070fc6c77c?w=400&h=300&fit=crop', embed: 'https://www.youtube.com/embed/4T7i2i1K4Wk', source: 'YouTube' },
+      { id: 10, category: 'guitar', title: '民谣吉他 爱的罗曼史', artist: '安德烈斯·塞戈维亚', duration: '3:18', views: '198万', image: 'https://images.unsplash.com/photo-1510915361894-db8b60106cb1?w=400&h=300&fit=crop', embed: 'https://www.youtube.com/embed/7J9X1P1q6Wk', source: 'YouTube' },
+
+      // 架子鼓
+      { id: 11, category: 'drum', title: '架子鼓独奏 燃爆全场', artist: 'J-Rod Sullivan', duration: '4:22', views: '445万', image: 'https://images.unsplash.com/photo-1519892300165-cb5542fb47c7?w=400&h=300&fit=crop', embed: 'https://www.youtube.com/embed/8Z3Q3Jd3e0o', source: 'YouTube' },
+      { id: 12, category: 'drum', title: '爵士鼓基本功练习', artist: 'Drumeo', duration: '12:45', views: '89万', image: 'https://images.unsplash.com/photo-1543443374-b6fe10a62d43?w=400&h=300&fit=crop', embed: 'https://www.youtube.com/embed/4T7i2i1K4Wk', source: 'YouTube' },
+      { id: 13, category: 'drum', title: 'Beyond 海阔天空 鼓谱演示', artist: '椰壳鼓手', duration: '5:28', views: '234万', image: 'https://images.unsplash.com/photo-1519892300165-cb5542fb47c7?w=400&h=300&fit=crop', embed: 'https://www.youtube.com/embed/7J9X1P1q6Wk', source: 'B站' },
+
+      // 声乐
+      { id: 14, category: 'vocal', title: '声乐基础：呼吸与发声', artist: '琴和堂李老师', duration: '15:30', views: '12万', image: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=400&h=300&fit=crop', embed: '', source: '站内' },
+      { id: 15, category: 'vocal', title: '美声唱法入门教程', artist: '帕瓦罗蒂', duration: '8:45', views: '67万', image: 'https://images.unsplash.com/photo-1516280440614-6697288d5d38?w=400&h=300&fit=crop', embed: 'https://www.youtube.com/embed/8Z3Q3Jd3e0o', source: 'YouTube' },
+      { id: 16, category: 'vocal', title: '流行唱法技巧解析', artist: 'SLS唱法', duration: '20:18', views: '156万', image: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=400&h=300&fit=crop', embed: 'https://www.youtube.com/embed/4T7i2i1K4Wk', source: 'YouTube' },
+
+      // 古典名曲
+      { id: 17, category: 'classic', title: '维瓦尔第 四季·春', artist: '穆特', duration: '3:35', views: '389万', image: 'https://images.unsplash.com/photo-1507838153414-b4b713384a76?w=400&h=300&fit=crop', embed: 'https://www.youtube.com/embed/8Z3Q3Jd3e0o', source: 'YouTube' },
+      { id: 18, category: 'classic', title: '卡农 D大调', artist: '帕赫贝尔', duration: '5:26', views: '521万', image: 'https://images.unsplash.com/photo-1552422535-c45813c61732?w=400&h=300&fit=crop', embed: 'https://www.youtube.com/embed/4T7i2i1K4Wk', source: 'YouTube' },
+      { id: 19, category: 'classic', title: '天鹅湖 场景音乐', artist: '柴可夫斯基', duration: '2:58', views: '267万', image: 'https://images.unsplash.com/photo-1507838153414-b4b713384a76?w=400&h=300&fit=crop', embed: 'https://www.youtube.com/embed/7J9X1P1q6Wk', source: 'YouTube' },
+      { id: 20, category: 'classic', title: '蓝色多瑙河', artist: '小约翰·施特劳斯', duration: '9:45', views: '178万', image: 'https://images.unsplash.com/photo-1549834125-82c3c9b28e4b?w=400&h=300&fit=crop', embed: 'https://www.youtube.com/embed/8Z3Q3Jd3e0o', source: 'YouTube' },
+
+      // 教学视频
+      { id: 21, category: 'teaching', title: '钢琴入门：认识键盘', artist: '琴和堂王老师', duration: '10:15', views: '8万', image: 'https://images.unsplash.com/photo-1520523839897-bd0b52f945a0?w=400&h=300&fit=crop', embed: '', source: '站内' },
+      { id: 22, category: 'teaching', title: '吉他基础和弦教学', artist: '琴和堂张老师', duration: '15:42', views: '15万', image: 'https://images.unsplash.com/photo-1510915361894-db8b60106cb1?w=400&h=300&fit=crop', embed: '', source: '站内' },
+      { id: 23, category: 'teaching', title: '架子鼓节奏型练习', artist: '琴和堂刘老师', duration: '12:30', views: '6万', image: 'https://images.unsplash.com/photo-1519892300165-cb5542fb47c7?w=400&h=300&fit=crop', embed: '', source: '站内' },
+      { id: 24, category: 'teaching', title: '五线谱基础教程', artist: '琴和堂陈老师', duration: '18:20', views: '22万', image: 'https://images.unsplash.com/photo-1507838153414-b4b713384a76?w=400&h=300&fit=crop', embed: '', source: '站内' },
+    ];
+
+    let currentCategory = 'all';
+    let searchQuery = '';
+
+    function renderVideos() {
+      const list = document.getElementById('videoList');
+      let filtered = videos;
+
+      if (currentCategory !== 'all') {
+        filtered = filtered.filter(v => v.category === currentCategory);
+      }
+
+      if (searchQuery) {
+        filtered = filtered.filter(v => 
+          v.title.includes(searchQuery) || v.artist.includes(searchQuery)
+        );
+      }
+
+      if (filtered.length === 0) {
+        list.innerHTML = '<div class="text-center py-12 text-slate-400">暂无相关视频</div>';
+        return;
+      }
+
+      list.innerHTML = filtered.map(v => `
+        <div class="video-card bg-white rounded-xl overflow-hidden shadow-sm mb-4 cursor-pointer" onclick="openVideo(${v.id})">
+          <div class="relative aspect-video">
+            <img src="${v.image}" class="w-full h-full object-cover" alt="${v.title}">
+            <div class="absolute inset-0 bg-black/30 play-overlay flex items-center justify-center">
+              <div class="w-14 h-14 bg-white/90 rounded-full flex items-center justify-center">
+                <svg class="w-7 h-7 text-primary ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+              </div>
+            </div>
+            <div class="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">${v.duration}</div>
+          </div>
+          <div class="p-3">
+            <h3 class="font-bold text-slate-800 text-sm line-clamp-2">${v.title}</h3>
+            <div class="flex justify-between items-center mt-2">
+              <span class="text-xs text-slate-500">${v.artist}</span>
+              <span class="text-xs text-slate-400">${v.views}次观看 · ${v.source}</span>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function filterCategory(cat) {
+      currentCategory = cat;
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('tab-active');
+        btn.classList.add('text-slate-500');
+      });
+      event.target.classList.add('tab-active');
+      event.target.classList.remove('text-slate-500');
+      renderVideos();
+    }
+
+    function openVideo(id) {
+      const video = videos.find(v => v.id === id);
+      document.getElementById('modalTitle').textContent = '正在加载：' + video.title;
+      document.getElementById('modalVideoTitle').textContent = video.title;
+      document.getElementById('modalVideoInfo').textContent = video.artist + ' · ' + video.duration + ' · ' + video.views + '次观看';
+
+      const container = document.getElementById('playerContainer');
+      const placeholder = document.getElementById('playerPlaceholder');
+
+      if (video.embed) {
+        container.innerHTML = `<iframe src="${video.embed}" class="w-full h-full" frameborder="0" allowfullscreen></iframe>`;
+        container.classList.remove('hidden');
+        placeholder.classList.add('hidden');
+      } else {
+        container.classList.add('hidden');
+        placeholder.classList.remove('hidden');
+        document.getElementById('modalTitle').innerHTML = '<div class="text-yellow-400 mb-2">⚠️ 该视频为站内资源</div><div class="text-sm">请前往琴和堂艺术中心线下观看完整课程</div>';
+      }
+
+      document.getElementById('videoModal').classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeModal() {
+      document.getElementById('videoModal').classList.remove('active');
+      document.getElementById('playerContainer').innerHTML = '';
+      document.body.style.overflow = '';
+    }
+
+    document.getElementById('searchInput').addEventListener('input', (e) => {
+      searchQuery = e.target.value;
+      renderVideos();
+    });
+
+    renderVideos();
+  </script>
+</body>
+</html>

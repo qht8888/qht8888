@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1e3a5f">
+  <title>乐谱下载中心 | 琴和堂艺术中心</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: { primary: '#1e3a5f', secondary: '#c9a96e', accent: '#e63946' },
+          fontFamily: { serif: ['Noto Serif SC','serif'], sans: ['Noto Sans SC','sans-serif'] }
+        }
+      }
+    }
+  </script>
+  <style>
+    * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+    body { font-family: 'Noto Sans SC', sans-serif; overscroll-behavior-y: none; }
+    .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
+    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .sheet-card { transition: all 0.3s ease; }
+    .sheet-card:active { transform: scale(0.97); }
+    .tab-active { color: #1e3a5f; border-bottom: 2px solid #1e3a5f; }
+    .difficulty-easy { background: #dcfce7; color: #166534; }
+    .difficulty-medium { background: #fef3c7; color: #92400e; }
+    .difficulty-hard { background: #fee2e2; color: #991b1b; }
+    .modal { display: none; position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,0.85); }
+    .modal.active { display: flex; align-items: center; justify-content: center; }
+    .pdf-preview { background: white; width: 100%; max-width: 800px; max-height: 90vh; overflow-y: auto; border-radius: 16px; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+  <!-- 顶部导航 -->
+  <div class="bg-primary text-white sticky top-0 z-50">
+    <div class="flex items-center justify-between px-4 h-14">
+      <a href="member.html" class="flex items-center gap-2">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        <span class="font-medium">返回</span>
+      </a>
+      <h1 class="font-serif font-bold text-lg">乐谱下载中心</h1>
+      <div class="w-16"></div>
+    </div>
+  </div>
+
+  <!-- 搜索栏 -->
+  <div class="bg-white px-4 py-3 shadow-sm sticky top-14 z-40">
+    <div class="relative">
+      <input type="text" id="searchInput" placeholder="搜索乐谱、作曲家、曲目..." 
+        class="w-full pl-10 pr-4 py-2.5 bg-slate-100 rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary/20">
+      <svg class="w-5 h-5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- 分类标签 -->
+  <div class="bg-white border-b hide-scrollbar overflow-x-auto">
+    <div class="flex gap-1 px-4 py-2 min-w-max" id="categoryTabs">
+      <button onclick="filterCategory('all')" class="tab-btn tab-active px-4 py-2 text-sm font-medium whitespace-nowrap">全部</button>
+      <button onclick="filterCategory('piano')" class="tab-btn px-4 py-2 text-sm text-slate-500 whitespace-nowrap">钢琴</button>
+      <button onclick="filterCategory('guitar')" class="tab-btn px-4 py-2 text-sm text-slate-500 whitespace-nowrap">吉他</button>
+      <button onclick="filterCategory('drum')" class="tab-btn px-4 py-2 text-sm text-slate-500 whitespace-nowrap">架子鼓</button>
+      <button onclick="filterCategory('vocal')" class="tab-btn px-4 py-2 text-sm text-slate-500 whitespace-nowrap">声乐</button>
+      <button onclick="filterCategory('classic')" class="tab-btn px-4 py-2 text-sm text-slate-500 whitespace-nowrap">古典</button>
+      <button onclick="filterCategory('pop')" class="tab-btn px-4 py-2 text-sm text-slate-500 whitespace-nowrap">流行</button>
+    </div>
+  </div>
+
+  <!-- 乐谱列表 -->
+  <div class="p-4 pb-24" id="sheetList">
+    <!-- 由JS生成 -->
+  </div>
+
+  <!-- 预览弹窗 -->
+  <div id="previewModal" class="modal" onclick="closeModal()">
+    <div class="pdf-preview mx-4" onclick="event.stopPropagation()">
+      <div class="sticky top-0 bg-primary text-white p-4 flex justify-between items-center rounded-t-2xl">
+        <h3 class="font-bold" id="previewTitle">乐谱预览</h3>
+        <button onclick="closeModal()" class="p-1">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="p-6" id="previewContent">
+        <!-- 预览内容 -->
+      </div>
+      <div class="p-4 border-t flex gap-3">
+        <button onclick="downloadSheet()" class="flex-1 py-3 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 transition-all">
+          <span class="flex items-center justify-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            下载PDF
+          </span>
+        </button>
+        <button onclick="printSheet()" class="flex-1 py-3 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 transition-all">
+          <span class="flex items-center justify-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+            打印
+          </span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 下载提示 -->
+  <div id="downloadToast" class="fixed top-20 left-1/2 -translate-x-1/2 bg-green-500 text-white px-6 py-3 rounded-full shadow-lg z-[200] hidden transition-all">
+    <span class="flex items-center gap-2">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+      下载已开始，请查看下载文件夹
+    </span>
+  </div>
+
+  <div class="safe-bottom h-4"></div>
+
+  <script>
+    // 大量免费乐谱数据
+    const sheets = [
+      // 钢琴 - 古典
+      { id: 1, category: 'piano', title: '巴赫 小步舞曲', composer: 'J.S. Bach', difficulty: 'easy', pages: 2, format: 'PDF', downloads: '12.5万', url: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=22', preview: true },
+      { id: 2, category: 'piano', title: '巴赫 C大调前奏曲 BWV846', composer: 'J.S. Bach', difficulty: 'medium', pages: 3, format: 'PDF', downloads: '28.3万', url: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=23', preview: true },
+      { id: 3, category: 'piano', title: '巴赫 二部创意曲 No.1', composer: 'J.S. Bach', difficulty: 'medium', pages: 2, format: 'PDF', downloads: '15.7万', url: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=24', preview: true },
+      { id: 4, category: 'piano', title: '莫扎特 土耳其进行曲', composer: 'W.A. Mozart', difficulty: 'medium', pages: 5, format: 'PDF', downloads: '45.2万', url: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=25', preview: true },
+      { id: 5, category: 'piano', title: '莫扎特 小星星变奏曲', composer: 'W.A. Mozart', difficulty: 'medium', pages: 6, format: 'PDF', downloads: '33.8万', url: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=26', preview: true },
+      { id: 6, category: 'piano', title: '贝多芬 致爱丽丝', composer: 'L.v. Beethoven', difficulty: 'easy', pages: 3, format: 'PDF', downloads: '67.4万', url: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=27', preview: true },
+      { id: 7, category: 'piano', title: '贝多芬 月光奏鸣曲 第一乐章', composer: 'L.v. Beethoven', difficulty: 'hard', pages: 5, format: 'PDF', downloads: '52.1万', url: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=28', preview: true },
+      { id: 8, category: 'piano', title: '肖邦 夜曲 Op.9 No.2', composer: 'F. Chopin', difficulty: 'medium', pages: 5, format: 'PDF', downloads: '38.9万', url: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=29', preview: true },
+      { id: 9, category: 'piano', title: '肖邦 圆舞曲 Op.64 No.2', composer: 'F. Chopin', difficulty: 'medium', pages: 4, format: 'PDF', downloads: '29.6万', url: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=30', preview: true },
+      { id: 10, category: 'piano', title: '德彪西 月光', composer: 'C. Debussy', difficulty: 'hard', pages: 5, format: 'PDF', downloads: '41.2万', url: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=31', preview: true },
+      { id: 11, category: 'piano', title: '舒伯特 小夜曲', composer: 'F. Schubert', difficulty: 'medium', pages: 3, format: 'PDF', downloads: '22.8万', url: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=32', preview: true },
+      { id: 12, category: 'piano', title: '李斯特 爱之梦 No.3', composer: 'F. Liszt', difficulty: 'hard', pages: 6, format: 'PDF', downloads: '35.4万', url: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=33', preview: true },
+
+      // 钢琴 - 流行
+      { id: 13, category: 'piano', title: '卡农 D大调', composer: 'Pachelbel', difficulty: 'easy', pages: 3, format: 'PDF', downloads: '89.6万', url: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=34', preview: true },
+      { id: 14, category: 'piano', title: '天空之城', composer: '久石让', difficulty: 'easy', pages: 3, format: 'PDF', downloads: '56.3万', url: '#', preview: true },
+      { id: 15, category: 'piano', title: '梦中的婚礼', composer: '理查德·克莱德曼', difficulty: 'easy', pages: 3, format: 'PDF', downloads: '72.1万', url: '#', preview: true },
+      { id: 16, category: 'piano', title: '克罗地亚狂想曲', composer: 'Maksim', difficulty: 'hard', pages: 6, format: 'PDF', downloads: '48.7万', url: '#', preview: true },
+      { id: 17, category: 'piano', title: 'River Flows in You', composer: 'Yiruma', difficulty: 'easy', pages: 3, format: 'PDF', downloads: '63.5万', url: '#', preview: true },
+
+      // 吉他 - 古典
+      { id: 18, category: 'guitar', title: '爱的罗曼史', composer: '西班牙民谣', difficulty: 'easy', pages: 2, format: 'PDF', downloads: '45.8万', url: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=100', preview: true },
+      { id: 19, category: 'guitar', title: '阿尔罕布拉宫的回忆', composer: 'Tarrega', difficulty: 'hard', pages: 5, format: 'PDF', downloads: '28.4万', url: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=101', preview: true },
+      { id: 20, category: 'guitar', title: '阿斯图里亚斯的传奇', composer: 'Albeniz', difficulty: 'hard', pages: 6, format: 'PDF', downloads: '31.2万', url: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=102', preview: true },
+      { id: 21, category: 'guitar', title: '大霍塔', composer: 'Tarrega', difficulty: 'hard', pages: 8, format: 'PDF', downloads: '15.6万', url: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=103', preview: true },
+      { id: 22, category: 'guitar', title: '魔笛主题变奏曲', composer: 'Sor', difficulty: 'medium', pages: 4, format: 'PDF', downloads: '22.3万', url: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=104', preview: true },
+
+      // 吉他 - 流行
+      { id: 23, category: 'guitar', title: '晴天', composer: '周杰伦', difficulty: 'easy', pages: 3, format: 'PDF', downloads: '98.5万', url: '#', preview: true },
+      { id: 24, category: 'guitar', title: '老男孩', composer: '筷子兄弟', difficulty: 'easy', pages: 2, format: 'PDF', downloads: '67.2万', url: '#', preview: true },
+      { id: 25, category: 'guitar', title: '斑马斑马', composer: '宋冬野', difficulty: 'easy', pages: 3, format: 'PDF', downloads: '54.8万', url: '#', preview: true },
+      { id: 26, category: 'guitar', title: '安河桥', composer: '宋冬野', difficulty: 'medium', pages: 3, format: 'PDF', downloads: '72.3万', url: '#', preview: true },
+      { id: 27, category: 'guitar', title: '成都', composer: '赵雷', difficulty: 'easy', pages: 3, format: 'PDF', downloads: '85.6万', url: '#', preview: true },
+      { id: 28, category: 'guitar', title: '平凡之路', composer: '朴树', difficulty: 'easy', pages: 2, format: 'PDF', downloads: '76.4万', url: '#', preview: true },
+      { id: 29, category: 'guitar', title: '十年', composer: '陈奕迅', difficulty: 'easy', pages: 2, format: 'PDF', downloads: '58.9万', url: '#', preview: true },
+      { id: 30, category: 'guitar', title: '光辉岁月', composer: 'Beyond', difficulty: 'easy', pages: 3, format: 'PDF', downloads: '63.1万', url: '#', preview: true },
+      { id: 31, category: 'guitar', title: '真的爱你', composer: 'Beyond', difficulty: 'easy', pages: 3, format: 'PDF', downloads: '71.5万', url: '#', preview: true },
+      { id: 32, category: 'guitar', title: '海阔天空', composer: 'Beyond', difficulty: 'medium', pages: 4, format: 'PDF', downloads: '82.7万', url: '#', preview: true },
+      { id: 33, category: 'guitar', title: '红色高跟鞋', composer: '蔡健雅', difficulty: 'easy', pages: 2, format: 'PDF', downloads: '45.2万', url: '#', preview: true },
+      { id: 34, category: 'guitar', title: '桥边姑娘', composer: '海伦', difficulty: 'easy', pages: 2, format: 'PDF', downloads: '38.6万', url: '#', preview: true },
+      { id: 35, category: 'guitar', title: '你的答案', composer: '阿冗', difficulty: 'easy', pages: 2, format: 'PDF', downloads: '42.3万', url: '#', preview: true },
+      { id: 36, category: 'guitar', title: '南山南', composer: '马頔', difficulty: 'easy', pages: 3, format: 'PDF', downloads: '51.8万', url: '#', preview: true },
+
+      // 架子鼓
+      { id: 37, category: 'drum', title: '逆战', composer: '张杰', difficulty: 'medium', pages: 3, format: 'PDF', downloads: '35.6万', url: '#', preview: true },
+      { id: 38, category: 'drum', title: '海阔天空', composer: 'Beyond', difficulty: 'medium', pages: 4, format: 'PDF', downloads: '48.2万', url: '#', preview: true },
+      { id: 39, category: 'drum', title: '光辉岁月', composer: 'Beyond', difficulty: 'easy', pages: 3, format: 'PDF', downloads: '42.8万', url: '#', preview: true },
+      { id: 40, category: 'drum', title: '真的爱你', composer: 'Beyond', difficulty: 'easy', pages: 3, format: 'PDF', downloads: '38.5万', url: '#', preview: true },
+      { id: 41, category: 'drum', title: '不再犹豫', composer: 'Beyond', difficulty: 'medium', pages: 3, format: 'PDF', downloads: '31.2万', url: '#', preview: true },
+      { id: 42, category: 'drum', title: '曾经的你', composer: '许巍', difficulty: 'easy', pages: 3, format: 'PDF', downloads: '28.4万', url: '#', preview: true },
+      { id: 43, category: 'drum', title: '王妃', composer: '萧敬腾', difficulty: 'medium', pages: 3, format: 'PDF', downloads: '25.6万', url: '#', preview: true },
+      { id: 44, category: 'drum', title: '红日', composer: '李克勤', difficulty: 'medium', pages: 3, format: 'PDF', downloads: '22.1万', url: '#', preview: true },
+      { id: 45, category: 'drum', title: '三天三夜', composer: '张惠妹', difficulty: 'hard', pages: 4, format: 'PDF', downloads: '18.9万', url: '#', preview: true },
+      { id: 46, category: 'drum', title: '沙漠骆驼', composer: '展展与罗罗', difficulty: 'easy', pages: 3, format: 'PDF', downloads: '29.7万', url: '#', preview: true },
+      { id: 47, category: 'drum', title: '少年', composer: '梦然', difficulty: 'easy', pages: 3, format: 'PDF', downloads: '33.4万', url: '#', preview: true },
+      { id: 48, category: 'drum', title: '鼓手每日基本功练习', composer: '综合', difficulty: 'easy', pages: 5, format: 'PDF', downloads: '15.2万', url: '#', preview: true },
+
+      // 声乐
+      { id: 49, category: 'vocal', title: '声乐基础练声曲', composer: '综合', difficulty: 'easy', pages: 4, format: 'PDF', downloads: '18.5万', url: '#', preview: true },
+      { id: 50, category: 'vocal', title: '视唱练耳基础教程', composer: '综合', difficulty: 'easy', pages: 8, format: 'PDF', downloads: '22.3万', url: '#', preview: true },
+      { id: 51, category: 'vocal', title: '意大利歌曲集', composer: '综合', difficulty: 'medium', pages: 12, format: 'PDF', downloads: '14.8万', url: '#', preview: true },
+      { id: 52, category: 'vocal', title: '中国艺术歌曲选', composer: '综合', difficulty: 'medium', pages: 10, format: 'PDF', downloads: '16.2万', url: '#', preview: true },
+
+      // 古典
+      { id: 53, category: 'classic', title: '维瓦尔第 四季·春', composer: 'Vivaldi', difficulty: 'medium', pages: 6, format: 'PDF', downloads: '28.6万', url: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=200', preview: true },
+      { id: 54, category: 'classic', title: '帕格尼尼 随想曲 No.24', composer: 'Paganini', difficulty: 'hard', pages: 4, format: 'PDF', downloads: '19.4万', url: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=201', preview: true },
+      { id: 55, category: 'classic', title: '门德尔松 婚礼进行曲', composer: 'Mendelssohn', difficulty: 'medium', pages: 3, format: 'PDF', downloads: '32.1万', url: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=202', preview: true },
+      { id: 56, category: 'classic', title: '勃拉姆斯 匈牙利舞曲 No.5', composer: 'Brahms', difficulty: 'medium', pages: 3, format: 'PDF', downloads: '25.7万', url: 'https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=203', preview: true },
+
+      // 流行
+      { id: 57, category: 'pop', title: '周杰伦钢琴曲精选集', composer: '周杰伦', difficulty: 'medium', pages: 15, format: 'PDF', downloads: '95.3万', url: '#', preview: true },
+      { id: 58, category: 'pop', title: '林俊杰钢琴曲精选集', composer: '林俊杰', difficulty: 'medium', pages: 12, format: 'PDF', downloads: '67.8万', url: '#', preview: true },
+      { id: 59, category: 'pop', title: '薛之谦吉他谱合集', composer: '薛之谦', difficulty: 'easy', pages: 10, format: 'PDF', downloads: '54.2万', url: '#', preview: true },
+      { id: 60, category: 'pop', title: '陈奕迅吉他谱合集', composer: '陈奕迅', difficulty: 'easy', pages: 12, format: 'PDF', downloads: '48.6万', url: '#', preview: true },
+    ];
+
+    let currentCategory = 'all';
+    let searchQuery = '';
+    let currentSheet = null;
+
+    function getDifficultyLabel(d) {
+      const map = { easy: '入门', medium: '中级', hard: '高级' };
+      return map[d] || d;
+    }
+
+    function getDifficultyClass(d) {
+      return 'difficulty-' + d;
+    }
+
+    function renderSheets() {
+      const list = document.getElementById('sheetList');
+      let filtered = sheets;
+
+      if (currentCategory !== 'all') {
+        filtered = filtered.filter(s => s.category === currentCategory);
+      }
+
+      if (searchQuery) {
+        filtered = filtered.filter(s => 
+          s.title.includes(searchQuery) || s.composer.includes(searchQuery)
+        );
+      }
+
+      if (filtered.length === 0) {
+        list.innerHTML = '<div class="text-center py-12 text-slate-400">暂无相关乐谱</div>';
+        return;
+      }
+
+      list.innerHTML = filtered.map(s => `
+        <div class="sheet-card bg-white rounded-xl p-4 shadow-sm mb-3 cursor-pointer" onclick="previewSheet(${s.id})">
+          <div class="flex gap-4">
+            <div class="w-16 h-20 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+              <svg class="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+            </div>
+            <div class="flex-1 min-w-0">
+              <h3 class="font-bold text-slate-800 text-sm truncate">${s.title}</h3>
+              <p class="text-xs text-slate-500 mt-1">${s.composer}</p>
+              <div class="flex items-center gap-2 mt-2">
+                <span class="${getDifficultyClass(s.difficulty)} text-xs px-2 py-0.5 rounded-full">${getDifficultyLabel(s.difficulty)}</span>
+                <span class="text-xs text-slate-400">${s.pages}页 · ${s.format}</span>
+              </div>
+              <div class="flex items-center justify-between mt-2">
+                <span class="text-xs text-slate-400">${s.downloads}次下载</span>
+                <span class="text-xs text-primary font-medium">点击预览</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function filterCategory(cat) {
+      currentCategory = cat;
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('tab-active');
+        btn.classList.add('text-slate-500');
+      });
+      event.target.classList.add('tab-active');
+      event.target.classList.remove('text-slate-500');
+      renderSheets();
+    }
+
+    function previewSheet(id) {
+      currentSheet = sheets.find(s => s.id === id);
+      document.getElementById('previewTitle').textContent = currentSheet.title;
+
+      // 生成模拟乐谱预览内容
+      const previewHTML = `
+        <div class="text-center mb-6">
+          <h2 class="text-2xl font-serif font-bold text-primary mb-2">${currentSheet.title}</h2>
+          <p class="text-slate-500">作曲：${currentSheet.composer} · ${currentSheet.pages}页 · ${getDifficultyLabel(currentSheet.difficulty)}难度</p>
+        </div>
+        <div class="bg-slate-50 rounded-xl p-6 mb-4">
+          <div class="flex justify-between items-center mb-4 border-b pb-2">
+            <span class="font-bold text-slate-700">第 1 / ${currentSheet.pages} 页</span>
+            <div class="flex gap-2">
+              <button class="px-3 py-1 bg-white border rounded text-sm">上一页</button>
+              <button class="px-3 py-1 bg-white border rounded text-sm">下一页</button>
+            </div>
+          </div>
+          <div class="space-y-4">
+            <!-- 模拟五线谱 -->
+            <div class="bg-white rounded-lg p-4 shadow-sm">
+              <div class="flex items-center gap-2 mb-3">
+                <span class="text-sm font-bold text-slate-700">Treble Clef</span>
+                <span class="text-xs text-slate-400">♩ = 120</span>
+              </div>
+              <div class="space-y-3">
+                ${Array(5).fill(0).map((_, i) => `
+                  <div class="relative h-8">
+                    <div class="absolute inset-x-0 top-0 h-px bg-slate-300"></div>
+                    <div class="absolute inset-x-0 top-2 h-px bg-slate-300"></div>
+                    <div class="absolute inset-x-0 top-4 h-px bg-slate-300"></div>
+                    <div class="absolute inset-x-0 top-6 h-px bg-slate-300"></div>
+                    <div class="absolute inset-x-0 top-8 h-px bg-slate-300"></div>
+                    ${[2, 5, 8, 12, 15, 18, 22, 25].map(x => `
+                      <div class="absolute top-${[0,1,2,3,4][Math.floor(Math.random()*5)]} left-[${x}%] w-3 h-3 bg-slate-800 rounded-full"></div>
+                    `).join('')}
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+            <div class="text-center text-slate-400 text-sm py-4">
+              ── 更多内容请下载完整PDF ──
+            </div>
+          </div>
+        </div>
+        <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+          <div class="flex items-start gap-3">
+            <svg class="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <div>
+              <p class="text-sm text-yellow-800 font-medium">免费下载说明</p>
+              <p class="text-xs text-yellow-700 mt-1">本乐谱为免费共享资源，仅供学习交流使用。部分古典乐谱来自 Mutopia Project（公有领域）。</p>
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('previewContent').innerHTML = previewHTML;
+      document.getElementById('previewModal').classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeModal() {
+      document.getElementById('previewModal').classList.remove('active');
+      document.body.style.overflow = '';
+    }
+
+    function downloadSheet() {
+      if (currentSheet && currentSheet.url && currentSheet.url !== '#') {
+        window.open(currentSheet.url, '_blank');
+      }
+      const toast = document.getElementById('downloadToast');
+      toast.classList.remove('hidden');
+      setTimeout(() => toast.classList.add('hidden'), 3000);
+    }
+
+    function printSheet() {
+      alert('打印功能：请将页面保存为PDF后打印，或前往琴和堂艺术中心获取高清打印版。');
+    }
+
+    document.getElementById('searchInput').addEventListener('input', (e) => {
+      searchQuery = e.target.value;
+      renderSheets();
+    });
+
+    renderSheets();
+  </script>
+</body>
+</html>
